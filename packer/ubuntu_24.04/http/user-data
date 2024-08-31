@@ -1,0 +1,20 @@
+#cloud-config
+autoinstall:
+  version: 1
+  identity:
+    hostname: ubuntu
+    username: ubuntu
+    password: "$6$rounds=4096$your-encrypted-password-here"
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  storage:
+    layout:
+      name: lvm
+  packages:
+    - build-essential
+  ssh:
+    install-server: yes
+    allow-pw: true
+  user-data:
+    disable_root: false

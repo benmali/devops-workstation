@@ -1,0 +1,96 @@
+{
+  "variables": {
+      "cpu": "2",
+      "ram": "2048",
+      "name": "rocky",
+      "disk_size": "50G",
+      "vm_name": "ubuntu_24.04",
+      "iso_checksum_type": "sha256",
+      "iso_urls": "https://releases.ubuntu.com/noble/ubuntu-24.04.1-desktop-amd64.iso",
+      "iso_checksum": "c2e6f4dc37ac944e2ed507f87c6188dd4d3179bf4a3f9e110d3c88d1f3294bdc",
+      "headless": "false",
+      "ssh_username": "{{env `SSH_USER`}}",
+      "ssh_password": "{{env `SSH_PASSWORD`}}",
+      "kind_version": "v0.20.0",
+      "packer_version": "1.11.2"
+    },
+  "builders": [
+    {
+      "type": "qemu",
+      "iso_urls": "{{user `iso_urls`}}",
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "output_directory": "ubuntu_24.04_disk",
+      "shutdown_command": "sudo systemctl poweroff",
+      "disk_size": "{{user `disk_size`}}",
+      "http_directory": "http",
+      "ssh_username": "{{user `ssh_username`}}",
+      "ssh_password": "{{user `ssh_password`}}",
+      "ssh_timeout": "20m",
+      "accelerator": "kvm",
+      "format": "qcow2",
+      "vm_name": "{{user `vm_name`}}",
+      "headless": "{{user `headless`}}",
+      "boot_wait": "10s",
+      "boot_command": [
+        "<esc><wait>",
+        "<esc><wait>",
+        "<enter><wait>",
+        "/casper/vmlinuz ",
+        "initrd=/casper/initrd ",
+        "autoinstall ds=nocloud-net;s=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ ",
+        "console-setup/layoutcode=us ",
+        "locale=en_US ",
+        "keyboard-configuration/layoutcode=us ",
+        "hostname=ubuntu ",
+        "console=ttyS0 ",
+        "quiet ",
+        " --- <enter>"
+      ]
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get update -y",
+        "sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common",
+        
+        "sudo apt install -y qemu-system qemu-img",
+
+        "echp 'Install Docker'",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
+        "echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+        "sudo apt-get update -y",
+        "sudo apt-get install -y docker-ce docker-ce-cli containerd.io",
+        "sudo usermod -aG docker ubuntu",
+
+        "echo 'Install KinD (Kubernetes in Docker)'",
+        "curl -Lo ./kind https://kind.sigs.k8s.io/dl/{{user `kind_version`}}/kind-linux-amd64",
+        "chmod +x ./kind",
+        "sudo mv ./kind /usr/bin/kind",
+
+        "echo 'Install VScode'",
+        "wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg",
+        "sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/",
+        "sudo sh -c 'echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/vscode stable main\" > /etc/apt/sources.list.d/vscode.list'",
+        "sudo apt-get install -y apt-transport-https",
+        "sudo apt-get update -y",
+        "sudo apt-get install -y code",
+        "rm -f packages.microsoft.gpg",
+
+        "echo 'Install Brave Browser'",
+        "sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg",
+        "echo 'deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main' | sudo tee /etc/apt/sources.list.d/brave-browser-release.list",
+        "sudo apt-get update -y",
+        "sudo apt-get install -y brave-browser",
+
+        "echo 'Install Packer'",
+        "curl -Lo packer.zip https://releases.hashicorp.com/packer/{{user `packer_version`}}/packer_{{user `packer_version`}}_linux_amd64.zip",
+        "unzip packer.zip",
+        "sudo chmod +x packer",
+        "sudo mv packer /usr/bin/",
+        "rm packer.zip"
+      ]
+    }
+  ]
+}
